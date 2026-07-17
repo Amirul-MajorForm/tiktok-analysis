@@ -24,8 +24,9 @@ const PALETTE = [
   '#ec4899', // pink
 ];
 
-function renderLegend(props: { payload?: { color: string; value: string }[] }) {
-  const { payload = [] } = props;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderLegend(props: any) {
+  const payload: { color: string; value: string }[] = props.payload ?? [];
   return (
     <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-3">
       {payload.map((entry, i) => (
