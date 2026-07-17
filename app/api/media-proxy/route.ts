@@ -5,8 +5,8 @@ export async function GET(req: NextRequest) {
   if (!url) return new NextResponse('Missing url', { status: 400 });
 
   try {
-    const decoded = decodeURIComponent(url);
-    const upstream = await fetch(decoded, {
+    // searchParams.get() already decodes once — use directly
+    const upstream = await fetch(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

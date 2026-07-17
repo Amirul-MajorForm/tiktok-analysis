@@ -23,40 +23,39 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
 
   return (
     <div className={`rounded-2xl border ${borderColor} bg-surface overflow-hidden flex flex-col`}>
-      <div className="relative aspect-[9/16] bg-ink/5 cursor-pointer" onClick={() => setPlaying(true)}>
+      <div className="relative aspect-[9/16] bg-ink/5">
+        {/* Always render thumbnail as background */}
+        {post.proxiedThumbnail && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.proxiedThumbnail}
+            alt="Video thumbnail"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
+
         {playing && post.proxiedVideoUrl ? (
           <video
             src={post.proxiedVideoUrl}
+            poster={post.proxiedThumbnail}
             autoPlay
             controls
             playsInline
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <>
-            {post.proxiedThumbnail ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={post.proxiedThumbnail}
-                alt="Video thumbnail"
-                className="w-full h-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-surface-subtle">
-                <svg className="w-10 h-10 text-ink-muted" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            )}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
-                <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
+          <button
+            onClick={() => setPlaying(true)}
+            className="absolute inset-0 w-full h-full flex items-center justify-center"
+            aria-label="Play video"
+          >
+            <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm hover:bg-black/70 transition">
+              <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
             </div>
-          </>
+          </button>
         )}
         {rank !== undefined && (
           <div className={`absolute top-2 left-2 w-7 h-7 rounded-full ${rankBg} flex items-center justify-center text-xs font-bold`}>

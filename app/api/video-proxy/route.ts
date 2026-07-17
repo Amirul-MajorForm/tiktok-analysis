@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
   if (!url) return new NextResponse('Missing url', { status: 400 });
 
   try {
-    const decoded = decodeURIComponent(url);
+    // searchParams.get() already decodes once — use directly
     const range = req.headers.get('range');
 
     const headers: Record<string, string> = {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     };
     if (range) headers['Range'] = range;
 
-    const upstream = await fetch(decoded, { headers });
+    const upstream = await fetch(url, { headers });
 
     const responseHeaders: Record<string, string> = {
       'Content-Type': upstream.headers.get('content-type') || 'video/mp4',
