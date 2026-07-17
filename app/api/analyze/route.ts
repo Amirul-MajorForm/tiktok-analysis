@@ -18,16 +18,21 @@ function normalizePost(raw: ApifyPost, index: number): TikTokPost {
   const plays =
     raw.playCount ?? raw.stats?.playCount ?? raw.plays ?? 0;
 
-  // Video URL: prefer direct videoUrl, fallback to video.downloadAddr / video.playAddr
+  // Direct video stream URL — free scraper often doesn't provide one
   const videoUrl =
     raw.videoUrl ||
     raw.video?.downloadAddr ||
     raw.video?.playAddr ||
-    raw.webVideoUrl ||
+    (raw.mediaUrls && raw.mediaUrls[0]) ||
     '';
 
-  // Thumbnail: covers.default → video.cover → first image in imagePost
+  // TikTok page URL for linking out
+  const webVideoUrl = raw.webVideoUrl || '';
+
+  // Thumbnail: videoMeta.coverUrl is the reliable field in this actor
   const thumbnailUrl =
+    raw.videoMeta?.coverUrl ||
+    raw.videoMeta?.originalCoverUrl ||
     raw.covers?.default ||
     raw.covers?.origin ||
     raw.video?.cover ||
@@ -51,6 +56,7 @@ function normalizePost(raw: ApifyPost, index: number): TikTokPost {
     shares,
     plays,
     videoUrl,
+    webVideoUrl,
     thumbnailUrl,
     hashtags,
     authorName: raw.authorMeta?.name || raw.authorMeta?.nickName || '',

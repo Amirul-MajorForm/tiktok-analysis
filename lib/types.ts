@@ -24,7 +24,9 @@ export interface ApifyPost {
   videoUrl?: string;
   video?: { downloadAddr?: string; cover?: string; playAddr?: string };
   covers?: { default?: string; origin?: string; dynamic?: string };
+  videoMeta?: { coverUrl?: string; originalCoverUrl?: string; height?: number; width?: number; duration?: number };
   imagePost?: { images?: { imageURL?: { urlList?: string[] } }[] };
+  mediaUrls?: string[];
   // Hashtags come back as objects
   hashtags?: Array<string | { name?: string; title?: string; id?: string }>;
   authorMeta?: { name?: string; nickName?: string };
@@ -40,7 +42,8 @@ export interface TikTokPost {
   comments: number;
   shares: number;
   plays: number;
-  videoUrl: string;
+  videoUrl: string;       // direct streamable URL (may be empty)
+  webVideoUrl: string;    // TikTok page URL for linking
   thumbnailUrl: string;
   hashtags: string[];
   authorName: string;
