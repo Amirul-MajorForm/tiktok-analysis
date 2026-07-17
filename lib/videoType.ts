@@ -1,8 +1,10 @@
 import type { TikTokPost, VideoType } from './types';
 
 export function inferVideoType(post: TikTokPost): VideoType {
-  const text = (post.text || '').toLowerCase();
-  const tags = (post.hashtags || []).map((h) => h.toLowerCase());
+  const text = String(post.text || '').toLowerCase();
+  const tags = (post.hashtags || []).map((h) =>
+    (typeof h === 'string' ? h : (h as { name?: string })?.name ?? '').toLowerCase()
+  );
   const all = [text, ...tags].join(' ');
 
   if (all.includes('#duet') || all.includes('duet with')) return 'Duet';

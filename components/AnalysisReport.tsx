@@ -13,8 +13,9 @@ function fmt(n: number): string {
 }
 
 function hookStrengthVariant(s: string) {
-  if (s === 'strong') return 'green';
-  if (s === 'moderate') return 'yellow';
+  const v = String(s || '').toLowerCase();
+  if (v === 'strong') return 'green';
+  if (v === 'moderate') return 'yellow';
   return 'red';
 }
 
