@@ -79,12 +79,6 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
           <Stat icon="▶️" label="Plays" value={fmt(post.plays)} />
         </div>
 
-        <div className="pt-2 border-t border-surface-border">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-ink-muted">Engagement score</span>
-            <span className="font-semibold text-ink">{fmt(post.engagementScore)}</span>
-          </div>
-        </div>
       </div>
     </div>
   );
