@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { EnrichedPost } from '@/lib/types';
 
 interface Props {
@@ -15,49 +16,61 @@ function fmt(n: number): string {
 }
 
 export default function VideoCard({ post, rank, variant = 'top' }: Props) {
+  const [playing, setPlaying] = useState(false);
+
   const borderColor = variant === 'top' ? 'border-brand-200' : 'border-red-100';
   const rankBg = variant === 'top' ? 'bg-brand-600 text-white' : 'bg-red-400 text-white';
+  const embedUrl = `https://www.tiktok.com/embed/v2/${post.id}`;
 
   return (
     <div className={`rounded-2xl border ${borderColor} bg-surface overflow-hidden flex flex-col`}>
-      <a
-        href={post.webVideoUrl || `https://www.tiktok.com/@${post.authorName}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="relative aspect-[9/16] bg-surface-subtle block group"
-      >
-        {post.proxiedThumbnail ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.proxiedThumbnail}
-            alt="Video thumbnail"
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      <div className="relative aspect-[9/16] bg-surface-subtle">
+
+        {playing ? (
+          <iframe
+            src={embedUrl}
+            className="absolute inset-0 w-full h-full"
+            allowFullScreen
+            allow="autoplay; encrypted-media"
+            title={post.text || 'TikTok video'}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-10 h-10 text-ink-muted" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.28 8.28 0 004.84 1.55V6.79a4.85 4.85 0 01-1.07-.1z"/>
-            </svg>
-          </div>
-        )}
+          <>
+            {post.proxiedThumbnail && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={post.proxiedThumbnail}
+                alt="Video thumbnail"
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
 
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition bg-white/90 text-ink text-xs font-semibold px-3 py-1.5 rounded-full">
-            Watch on TikTok ↗
-          </div>
-        </div>
+            <button
+              onClick={() => setPlaying(true)}
+              className="absolute inset-0 w-full h-full flex items-center justify-center group"
+              aria-label="Play video"
+            >
+              <div className="w-14 h-14 rounded-full bg-black/50 group-hover:bg-black/70 transition flex items-center justify-center backdrop-blur-sm">
+                <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </button>
+          </>
+        )}
 
         {rank !== undefined && (
           <div className={`absolute top-2 left-2 w-7 h-7 rounded-full ${rankBg} flex items-center justify-center text-xs font-bold z-10`}>
             {rank}
           </div>
         )}
-        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full z-10">
-          {post.videoType}
-        </div>
-      </a>
+        {!playing && (
+          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full z-10">
+            {post.videoType}
+          </div>
+        )}
+      </div>
 
       <div className="p-4 flex flex-col gap-3 flex-1">
         <p className="text-xs text-ink-secondary line-clamp-3 leading-relaxed">
