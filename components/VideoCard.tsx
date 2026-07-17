@@ -24,9 +24,9 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
   return (
     <div className={`rounded-2xl border ${borderColor} bg-surface overflow-hidden flex flex-col`}>
       <div className="relative aspect-[9/16] bg-ink/5 cursor-pointer" onClick={() => setPlaying(true)}>
-        {playing && post.videoUrl ? (
+        {playing && post.proxiedVideoUrl ? (
           <video
-            src={post.videoUrl}
+            src={post.proxiedVideoUrl}
             autoPlay
             controls
             playsInline
@@ -40,6 +40,7 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
                 src={post.proxiedThumbnail}
                 alt="Video thumbnail"
                 className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-surface-subtle">
@@ -73,10 +74,10 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
         </p>
 
         <div className="grid grid-cols-2 gap-2 mt-auto">
-          <Stat icon="❤️" label="Likes" value={fmt(post.likes || 0)} />
-          <Stat icon="💬" label="Comments" value={fmt(post.comments || 0)} />
-          <Stat icon="↗️" label="Shares" value={fmt(post.shares || 0)} />
-          <Stat icon="▶️" label="Plays" value={fmt(post.plays || 0)} />
+          <Stat icon="❤️" label="Likes" value={fmt(post.likes)} />
+          <Stat icon="💬" label="Comments" value={fmt(post.comments)} />
+          <Stat icon="↗️" label="Shares" value={fmt(post.shares)} />
+          <Stat icon="▶️" label="Plays" value={fmt(post.plays)} />
         </div>
 
         <div className="pt-2 border-t border-surface-border">

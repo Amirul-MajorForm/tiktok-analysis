@@ -1,16 +1,49 @@
+/** Raw shape returned by Apify clockworks~free-tiktok-scraper */
+export interface ApifyPost {
+  id?: string;
+  text?: string;
+  createTime?: number;
+  // Apify field names for metrics
+  diggCount?: number;
+  commentCount?: number;
+  shareCount?: number;
+  playCount?: number;
+  // Also possible nested under stats
+  stats?: {
+    diggCount?: number;
+    commentCount?: number;
+    shareCount?: number;
+    playCount?: number;
+  };
+  // Also possible flat legacy names
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  plays?: number;
+  // Video / covers
+  videoUrl?: string;
+  video?: { downloadAddr?: string; cover?: string; playAddr?: string };
+  covers?: { default?: string; origin?: string; dynamic?: string };
+  imagePost?: { images?: { imageURL?: { urlList?: string[] } }[] };
+  // Hashtags come back as objects
+  hashtags?: Array<string | { name?: string; title?: string; id?: string }>;
+  authorMeta?: { name?: string; nickName?: string };
+  webVideoUrl?: string;
+}
+
+/** Normalized post we work with internally */
 export interface TikTokPost {
+  id: string;
   text: string;
+  createTime: number;
   likes: number;
   comments: number;
   shares: number;
   plays: number;
-  createTime: number;
   videoUrl: string;
-  covers?: { default?: string };
-  hashtags?: string[];
-  authorMeta?: { name?: string };
-  webVideoUrl?: string;
-  id?: string;
+  thumbnailUrl: string;
+  hashtags: string[];
+  authorName: string;
 }
 
 export interface ContentPillar {
@@ -86,7 +119,8 @@ export interface AnalysisReport {
 export interface EnrichedPost extends TikTokPost {
   engagementScore: number;
   videoType: VideoType;
-  proxiedThumbnail?: string;
+  proxiedThumbnail: string;
+  proxiedVideoUrl: string;
 }
 
 export type VideoType = 'Talking Head' | 'Duet' | 'Stitch' | 'B-Roll' | 'Text-on-Screen';
