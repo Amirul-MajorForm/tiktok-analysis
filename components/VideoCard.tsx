@@ -30,7 +30,7 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
       {/* Thumbnail — 16:9 */}
       <div style={{
         position: 'relative',
-        paddingTop: '56.25%', // 16:9
+        paddingTop: '177.78%', // 9:16
         background: isWorst ? '#fdf0f0' : '#f5f5f2',
         borderRadius: '8px 8px 0 0',
         overflow: 'hidden',
