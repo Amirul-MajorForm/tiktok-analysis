@@ -175,31 +175,62 @@ export async function POST(req: NextRequest) {
     // Call Apify
     const apifyUrl = `https://api.apify.com/v2/acts/clockworks~free-tiktok-scraper/run-sync-get-dataset-items?token=${process.env.APIFY_API_KEY}&timeout=120&memory=1024`;
 
+    const apifyBody = {
+      profiles: [profileUrl],
+      resultsPerPage: 50,
+      shouldDownloadVideos: false,
+      shouldDownloadCovers: false,
+      shouldDownloadSubtitles: false,
+      shouldDownloadSlideshowImages: false,
+    };
+
+    console.log('[analyze] Apify request body:', JSON.stringify(apifyBody));
+
     const apifyRes = await fetch(apifyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        profiles: [profileUrl],
-        resultsPerPage: 50,
-        shouldDownloadVideos: false,
-        shouldDownloadCovers: false,
-        shouldDownloadSubtitles: false,
-        shouldDownloadSlideshowImages: false,
-      }),
+      body: JSON.stringify(apifyBody),
       signal: AbortSignal.timeout(150_000),
     });
 
     if (!apifyRes.ok) {
       const text = await apifyRes.text();
-      console.error('Apify error', apifyRes.status, text);
+      console.error('[analyze] Apify error', apifyRes.status, text);
       return NextResponse.json({ error: `Apify error: ${apifyRes.status}` }, { status: 502 });
     }
 
     const rawPosts: ApifyPost[] = await apifyRes.json();
+    console.log('[analyze] Apify returned', rawPosts.length, 'posts for', profileUrl);
+
+    if (!Array.isArray(rawPosts) || rawPosts.length === 0) {
+      // Retry with startUrls format — some regional profiles need this
+      console.log('[analyze] Retrying with startUrls format...');
+      const retryBody = {
+        startUrls: [{ url: profileUrl }],
+        resultsPerPage: 50,
+        shouldDownloadVideos: false,
+        shouldDownloadCovers: false,
+        shouldDownloadSubtitles: false,
+        shouldDownloadSlideshowImages: false,
+      };
+      const retryRes = await fetch(apifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(retryBody),
+        signal: AbortSignal.timeout(150_000),
+      });
+      if (retryRes.ok) {
+        const retryPosts: ApifyPost[] = await retryRes.json();
+        console.log('[analyze] startUrls retry returned', retryPosts.length, 'posts');
+        if (Array.isArray(retryPosts) && retryPosts.length > 0) {
+          rawPosts.push(...retryPosts);
+        }
+      }
+    }
 
     if (!Array.isArray(rawPosts) || rawPosts.length === 0) {
       return NextResponse.json(
-        { error: 'No posts returned from Apify. Check the profile URL.' },
+        { error: 'No posts returned from Apify. The profile may be private, regional, or the scraper timed out. Check Railway logs for details.' },
         { status: 422 }
       );
     }
