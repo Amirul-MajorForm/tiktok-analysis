@@ -37,13 +37,30 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
         flexShrink: 0,
       }}>
         {playing ? (
-          <iframe
-            src={embedUrl}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-            allowFullScreen
-            allow="autoplay; encrypted-media"
-            title={post.text || 'TikTok video'}
-          />
+          <>
+            <iframe
+              src={embedUrl}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+              allowFullScreen
+              allow="autoplay; encrypted-media"
+              title={post.text || 'TikTok video'}
+            />
+            {post.webVideoUrl && (
+              <a
+                href={post.webVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  position: 'absolute', bottom: 8, left: 0, right: 0,
+                  textAlign: 'center', zIndex: 20,
+                  fontFamily: 'DM Sans', fontSize: 10, color: 'rgba(255,255,255,0.7)',
+                  textDecoration: 'none', pointerEvents: 'auto',
+                }}
+              >
+                Open on TikTok ↗
+              </a>
+            )}
+          </>
         ) : (
           <>
             {post.proxiedThumbnail && (
