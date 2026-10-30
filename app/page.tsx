@@ -55,11 +55,23 @@ export default function Home() {
     window.print();
   };
 
+  const handleDownloadJSON = () => {
+    if (!report) return;
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tiktok-analysis-${report.profileSnapshot.handle.replace('@', '')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ─── Dashboard view ───────────────────────────────────────────────────────
   if (stage === 'result' && report) {
     return (
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f2' }}>
-        <TopHeader onReset={reset} onDownloadPDF={handleDownloadPDF} />
+      <>
+      <div id="dashboard-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f5f5f2' }}>
+        <TopHeader onReset={reset} onDownloadPDF={handleDownloadPDF} onDownloadJSON={handleDownloadJSON} />
         <ProfileHeader report={report} />
         <TabBar active={activeTab} onChange={setActiveTab} />
         <div id="tab-content" style={{ flex: 1, overflowY: 'auto', padding: '24px' }} className="scrollbar-hide">
@@ -69,8 +81,10 @@ export default function Home() {
           {activeTab === 'videos' && <TopVideosTab report={report} />}
           {activeTab === 'recommendations' && <RecommendationsTab report={report} />}
         </div>
-        {/* Hidden full-report div — only visible at print time */}
-        <div id="print-report" style={{ display: 'none' }}>
+      </div>
+
+      {/* Full-report div — off-screen on screen, shown only at print time */}
+      <div id="print-report" style={{ position: 'fixed', left: '-9999px', top: 0, width: '210mm' }} aria-hidden="true">
           <div style={{ padding: '32px', fontFamily: 'sans-serif' }}>
             <h1 style={{ fontSize: 22, marginBottom: 4 }}>{report.profileSnapshot.handle} — TikTok Analysis</h1>
             <p style={{ color: '#666', fontSize: 12, marginBottom: 24 }}>
@@ -185,15 +199,21 @@ export default function Home() {
           </div>
         </div>
 
-        <style>{`
-          @media print {
-            body * { visibility: hidden !important; }
-            #print-report, #print-report * { visibility: visible !important; display: block !important; }
-            #print-report { position: fixed; inset: 0; background: white; z-index: 9999; overflow: visible; }
-            @page { margin: 1.5cm; size: A4; }
+      <style>{`
+        @media print {
+          #dashboard-root { display: none !important; }
+          #print-report {
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            width: auto !important;
+            display: block !important;
+            background: white;
           }
-        `}</style>
-      </div>
+          @page { margin: 1.5cm; size: A4; }
+        }
+      `}</style>
+      </>
     );
   }
 

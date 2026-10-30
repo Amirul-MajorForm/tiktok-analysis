@@ -1,9 +1,10 @@
 interface Props {
   onReset?: () => void;
   onDownloadPDF?: () => void;
+  onDownloadJSON?: () => void;
 }
 
-export default function TopHeader({ onReset, onDownloadPDF }: Props) {
+export default function TopHeader({ onReset, onDownloadPDF, onDownloadJSON }: Props) {
   return (
     <header style={{
       height: 52,
@@ -23,6 +24,30 @@ export default function TopHeader({ onReset, onDownloadPDF }: Props) {
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8aac0e', display: 'inline-block' }} />
           Creative strategist mode
         </span>
+        {onDownloadJSON && (
+          <button
+            onClick={onDownloadJSON}
+            style={{
+              border: '1px solid #dddddd',
+              color: '#555555',
+              borderRadius: 8,
+              padding: '6px 14px',
+              background: 'transparent',
+              fontFamily: 'DM Sans',
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            Export JSON
+          </button>
+        )}
         {onDownloadPDF && (
           <button
             onClick={onDownloadPDF}
