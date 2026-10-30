@@ -72,15 +72,24 @@ function proxyUrl(url: string, type: 'media' | 'video' = 'media'): string {
   return `/api/${type}-proxy?url=${encodeURIComponent(url)}`;
 }
 
+/** Strip characters that would break JSON serialization of the Claude prompt */
+function sanitize(s: string): string {
+  return s
+    .replace(/[\u0000-\u001F\u007F]/g, ' ') // control characters
+    .replace(/[\uD800-\uDFFF]/g, '')          // lone surrogates
+    .replace(/\\/g, '/')                       // backslashes
+    .trim();
+}
+
 function buildPostSummary(posts: TikTokPost[]): string {
   return posts
     .map((p, i) => {
-      const tags = p.hashtags.map((h) => `#${h}`).join(' ');
+      const tags = p.hashtags.map((h) => `#${sanitize(h)}`).join(' ');
       const date = p.createTime
         ? new Date(p.createTime * 1000).toISOString().split('T')[0]
         : 'unknown';
       return `Post ${i + 1} [${date}]
-Caption: ${p.text.slice(0, 300)}
+Caption: ${sanitize(p.text).slice(0, 300)}
 Hashtags: ${tags || 'none'}
 Likes: ${p.likes} | Comments: ${p.comments} | Shares: ${p.shares} | Plays: ${p.plays}`;
     })
