@@ -171,7 +171,7 @@ ${summary}`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { profileUrl, username } = await req.json();
+    const { profileUrl, username, additionalContext } = await req.json();
     if (!profileUrl || !username) {
       return NextResponse.json(
         { error: 'profileUrl and username are required' },
@@ -262,11 +262,14 @@ export async function POST(req: NextRequest) {
 
     // Build Claude prompt
     const summary = buildPostSummary(posts);
+    const contextBlock = additionalContext
+      ? `\n\nADDITIONAL CONTEXT FROM CLIENT:\n${sanitize(String(additionalContext)).slice(0, 1000)}`
+      : '';
     const message = await anthropic.messages.create({
       model: 'claude-opus-4-8',
       max_tokens: 5000,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: USER_PROMPT(cleanUsername, summary, posts.length) }],
+      messages: [{ role: 'user', content: USER_PROMPT(cleanUsername, summary, posts.length) + contextBlock }],
     });
 
     const rawText = message.content[0].type === 'text' ? message.content[0].text : '';

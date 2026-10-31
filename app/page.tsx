@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TopHeader from '@/components/TopHeader';
 import ProfileHeader from '@/components/ProfileHeader';
 import TabBar, { TABS } from '@/components/TabBar';
@@ -14,42 +14,89 @@ import type { AnalysisReport } from '@/lib/types';
 
 type Stage = 'idle' | 'loading' | 'result' | 'error';
 
+const PROGRESS_STEPS = [
+  { pct: 5,  label: 'Connecting to TikTok scraper…' },
+  { pct: 20, label: 'Scraping posts from profile…' },
+  { pct: 45, label: 'Scraping posts from profile…' },
+  { pct: 60, label: 'Sending data to Claude…' },
+  { pct: 75, label: 'Analysing content pillars & hooks…' },
+  { pct: 88, label: 'Building strategic report…' },
+  { pct: 94, label: 'Almost done…' },
+];
+
 export default function Home() {
   const [stage, setStage] = useState<Stage>('idle');
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState('');
+  const [progressPct, setProgressPct] = useState(0);
+  const [progressLabel, setProgressLabel] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [profileUrl, setProfileUrl] = useState('');
   const [username, setUsername] = useState('');
+  const [additionalContext, setAdditionalContext] = useState('');
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startProgress = () => {
+    let step = 0;
+    setProgressPct(PROGRESS_STEPS[0].pct);
+    setProgressLabel(PROGRESS_STEPS[0].label);
+    // Advance through steps over ~110 seconds total
+    const intervals = [8000, 15000, 12000, 10000, 15000, 20000];
+    const tick = () => {
+      step++;
+      if (step < PROGRESS_STEPS.length) {
+        setProgressPct(PROGRESS_STEPS[step].pct);
+        setProgressLabel(PROGRESS_STEPS[step].label);
+        progressTimer.current = setTimeout(tick, intervals[step - 1] ?? 15000);
+      }
+    };
+    progressTimer.current = setTimeout(tick, intervals[0]);
+  };
+
+  const stopProgress = (success: boolean) => {
+    if (progressTimer.current) clearTimeout(progressTimer.current);
+    if (success) {
+      setProgressPct(100);
+      setProgressLabel('Done!');
+    }
+  };
+
+  useEffect(() => () => { if (progressTimer.current) clearTimeout(progressTimer.current); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileUrl.trim() || !username.trim()) return;
     setStage('loading');
     setError('');
-    setProgress('Scraping TikTok profile via Apify…');
-    const timeout = setTimeout(() => setProgress('Sending data to Claude for analysis…'), 30_000);
+    startProgress();
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileUrl: profileUrl.trim(), username: username.trim() }),
+        body: JSON.stringify({
+          profileUrl: profileUrl.trim(),
+          username: username.trim(),
+          additionalContext: additionalContext.trim(),
+        }),
       });
-      clearTimeout(timeout);
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Something went wrong'); setStage('error'); return; }
+      if (!res.ok) { stopProgress(false); setError(data.error || 'Something went wrong'); setStage('error'); return; }
+      stopProgress(true);
       setReport(data);
       setActiveTab('overview');
       setStage('result');
     } catch (err) {
-      clearTimeout(timeout);
+      stopProgress(false);
       setError(err instanceof Error ? err.message : 'Network error');
       setStage('error');
     }
   };
 
-  const reset = () => { setReport(null); setStage('idle'); setError(''); setProfileUrl(''); setUsername(''); };
+  const reset = () => {
+    setReport(null); setStage('idle'); setError('');
+    setProfileUrl(''); setUsername(''); setAdditionalContext('');
+    setProgressPct(0); setProgressLabel('');
+  };
 
   const handleDownloadPDF = () => {
     window.print();
@@ -260,17 +307,24 @@ export default function Home() {
             )}
 
             {stage === 'loading' ? (
-              <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                <div style={{
-                  width: 40, height: 40, border: '3px solid #e5e5e0',
-                  borderTopColor: '#c8f060', borderRadius: '50%',
-                  margin: '0 auto 16px',
-                  animation: 'spin 0.8s linear infinite',
-                }} />
-                <p style={{ fontFamily: 'Space Grotesk', fontWeight: 500, fontSize: 14, color: '#111111', margin: '0 0 4px 0' }}>
-                  {progress}
-                </p>
-                <p style={{ fontFamily: 'DM Sans', fontSize: 12, color: '#aaaaaa', margin: 0 }}>
+              <div style={{ padding: '28px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                  <p style={{ fontFamily: 'Space Grotesk', fontWeight: 500, fontSize: 13, color: '#111111', margin: 0 }}>
+                    {progressLabel}
+                  </p>
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#aaaaaa' }}>{progressPct}%</span>
+                </div>
+                {/* Track */}
+                <div style={{ height: 6, background: '#e5e5e0', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${progressPct}%`,
+                    background: 'linear-gradient(90deg, #a8d820 0%, #c8f060 100%)',
+                    borderRadius: 99,
+                    transition: 'width 1.2s cubic-bezier(0.4,0,0.2,1)',
+                  }} />
+                </div>
+                <p style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#aaaaaa', margin: '10px 0 0', textAlign: 'center' }}>
                   This takes up to 2 minutes
                 </p>
               </div>
@@ -320,6 +374,29 @@ export default function Home() {
                     />
                   </div>
                 </div>
+                <div>
+                  <label style={{ fontFamily: 'Space Grotesk', fontSize: 11, fontWeight: 500, color: '#111111', display: 'block', marginBottom: 4 }}>
+                    Additional context
+                    <span style={{ fontFamily: 'DM Sans', fontWeight: 400, color: '#aaaaaa', marginLeft: 6 }}>optional</span>
+                  </label>
+                  <p style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#999999', margin: '0 0 6px' }}>
+                    e.g. "focus on skincare audience", "they&apos;re launching in the US", "brand tone should be premium"
+                  </p>
+                  <textarea
+                    value={additionalContext}
+                    onChange={(e) => setAdditionalContext(e.target.value)}
+                    placeholder="Tell Claude anything that should inform the analysis…"
+                    rows={3}
+                    style={{
+                      width: '100%', padding: '10px 12px',
+                      border: '1px solid #e5e5e0', borderRadius: 8,
+                      fontFamily: 'DM Sans', fontSize: 13, color: '#111111',
+                      background: '#ffffff', outline: 'none',
+                      boxSizing: 'border-box', resize: 'vertical',
+                      lineHeight: 1.5,
+                    }}
+                  />
+                </div>
                 <button
                   type="submit"
                   style={{
@@ -339,8 +416,7 @@ export default function Home() {
       </main>
 
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        input:focus { border-color: #c8f060 !important; box-shadow: 0 0 0 2px rgba(200,240,96,0.2); }
+        input:focus, textarea:focus { border-color: #c8f060 !important; box-shadow: 0 0 0 2px rgba(200,240,96,0.2); }
       `}</style>
     </div>
   );
