@@ -219,31 +219,36 @@ export async function POST(req: NextRequest) {
       console.log('[analyze] Falling back to RapidAPI (got', rawPosts.length, 'from Apify)');
       try {
         const handle = cleanUsername;
-        // Fetch up to 3 pages of ~20 posts each to get ~50 total
+        const rapidHeaders = {
+          'x-rapidapi-host': 'tiktok-api23.p.rapidapi.com',
+          'x-rapidapi-key': process.env.RAPIDAPI_KEY!,
+        };
+
+        // Step 1: resolve username → secUid
+        const infoRes = await fetch(
+          `https://tiktok-api23.p.rapidapi.com/api/user/info?uniqueId=${encodeURIComponent(handle)}`,
+          { headers: rapidHeaders, signal: AbortSignal.timeout(20_000) }
+        );
+        if (!infoRes.ok) { console.error('[analyze] RapidAPI user/info error', infoRes.status); throw new Error('info failed'); }
+        const infoData = await infoRes.json();
+        console.log('[analyze] RapidAPI user/info sample:', JSON.stringify(infoData).slice(0, 400));
+        const secUid = infoData?.data?.user?.secUid ?? infoData?.userInfo?.user?.secUid ?? infoData?.user?.secUid;
+        if (!secUid) { console.error('[analyze] RapidAPI: could not find secUid in', JSON.stringify(infoData).slice(0, 300)); throw new Error('no secUid'); }
+        console.log('[analyze] RapidAPI secUid:', secUid.slice(0, 20), '...');
+
+        // Step 2: fetch posts using secUid, up to 3 pages
         const pages: ApifyPost[] = [];
         let cursor = '0';
-        for (let page = 0; page < 3 && (page === 0 || cursor !== '0'); page++) {
-          const rapidRes = await fetch(
-            `https://tiktok-api23.p.rapidapi.com/api/user/posts?uniqueId=${encodeURIComponent(handle)}&count=20&cursor=${cursor}`,
-            {
-              headers: {
-                'x-rapidapi-host': 'tiktok-api23.p.rapidapi.com',
-                'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-              },
-              signal: AbortSignal.timeout(30_000),
-            }
+        for (let page = 0; page < 3; page++) {
+          const postsRes = await fetch(
+            `https://tiktok-api23.p.rapidapi.com/api/user/posts?secUid=${encodeURIComponent(secUid)}&count=20&cursor=${cursor}`,
+            { headers: rapidHeaders, signal: AbortSignal.timeout(30_000) }
           );
-          if (!rapidRes.ok) {
-            const errText = await rapidRes.text();
-            console.error('[analyze] RapidAPI error', rapidRes.status, errText.slice(0, 300));
-            break;
-          }
-          const rapidData = await rapidRes.json();
-          console.log('[analyze] RapidAPI raw keys:', Object.keys(rapidData), '| data keys:', rapidData?.data ? Object.keys(rapidData.data) : 'n/a');
-          console.log('[analyze] RapidAPI sample:', JSON.stringify(rapidData).slice(0, 500));
-          const items = rapidData?.data?.itemList ?? rapidData?.itemList ?? rapidData?.aweme_list ?? rapidData?.data?.aweme_list ?? [];
-          if (!items.length) { console.log('[analyze] RapidAPI: no items in response'); break; }
-          // Map RapidAPI shape → ApifyPost
+          if (!postsRes.ok) { console.error('[analyze] RapidAPI posts error', postsRes.status); break; }
+          const postsData = await postsRes.json();
+          console.log('[analyze] RapidAPI posts page', page, 'keys:', Object.keys(postsData).join(','), '| sample:', JSON.stringify(postsData).slice(0, 300));
+          const items = postsData?.data?.itemList ?? postsData?.itemList ?? postsData?.aweme_list ?? postsData?.data?.aweme_list ?? [];
+          if (!items.length) break;
           for (const item of items) {
             pages.push({
               id: item.id ?? item.aweme_id,
@@ -259,8 +264,8 @@ export async function POST(req: NextRequest) {
               authorMeta: { name: item.author?.uniqueId ?? handle, nickName: item.author?.nickname },
             });
           }
-          cursor = String(rapidData?.data?.cursor ?? rapidData?.cursor ?? '0');
-          if (!rapidData?.data?.hasMore && !rapidData?.hasMore) break;
+          cursor = String(postsData?.data?.cursor ?? postsData?.cursor ?? '0');
+          if (!postsData?.data?.hasMore && !postsData?.hasMore) break;
         }
         console.log('[analyze] RapidAPI returned', pages.length, 'posts');
         if (pages.length > rawPosts.length) rawPosts = pages;
