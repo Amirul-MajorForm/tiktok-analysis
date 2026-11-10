@@ -190,6 +190,10 @@ export async function POST(req: NextRequest) {
       shouldDownloadCovers: false,
       shouldDownloadSubtitles: false,
       shouldDownloadSlideshowImages: false,
+      proxyConfiguration: {
+        useApifyProxy: true,
+        apifyProxyGroups: ['RESIDENTIAL'],
+      },
     };
 
     // Fire both input formats in parallel — regional profiles often only respond to one of them
