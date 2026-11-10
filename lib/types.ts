@@ -124,6 +124,8 @@ export interface EnrichedPost extends TikTokPost {
   videoType: VideoType;
   proxiedThumbnail: string;
   proxiedVideoUrl: string;
+  captionTranslated?: string;
+  videoSummary?: string;
 }
 
 export type VideoType = 'Talking Head' | 'Duet' | 'Stitch' | 'B-Roll' | 'Text-on-Screen';

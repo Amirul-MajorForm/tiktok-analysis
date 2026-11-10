@@ -250,16 +250,22 @@ export async function POST(req: NextRequest) {
           const items = postsData?.data?.itemList ?? postsData?.itemList ?? postsData?.aweme_list ?? postsData?.data?.aweme_list ?? [];
           if (!items.length) break;
           for (const item of items) {
+            const videoId = item.id ?? item.aweme_id;
             pages.push({
-              id: item.id ?? item.aweme_id,
+              id: videoId,
               text: item.desc ?? '',
               createTime: item.createTime ?? item.create_time,
               diggCount: item.stats?.diggCount ?? item.statistics?.digg_count,
               commentCount: item.stats?.commentCount ?? item.statistics?.comment_count,
               shareCount: item.stats?.shareCount ?? item.statistics?.share_count,
               playCount: item.stats?.playCount ?? item.statistics?.play_count,
+              video: {
+                downloadAddr: item.video?.downloadAddr ?? item.video?.download_addr,
+                playAddr: item.video?.playAddr ?? item.video?.play_addr,
+                cover: item.video?.cover ?? item.video?.originCover,
+              },
               videoMeta: { coverUrl: item.video?.cover ?? item.video?.originCover },
-              webVideoUrl: `https://www.tiktok.com/@${handle}/video/${item.id ?? item.aweme_id}`,
+              webVideoUrl: `https://www.tiktok.com/@${handle}/video/${videoId}`,
               hashtags: (item.textExtra ?? []).map((t: { hashtagName?: string }) => t.hashtagName ?? '').filter(Boolean),
               authorMeta: { name: item.author?.uniqueId ?? handle, nickName: item.author?.nickname },
             });
@@ -332,10 +338,52 @@ export async function POST(req: NextRequest) {
     claudeReport.profileSnapshot.handle = `@${cleanUsername}`;
     claudeReport.profileSnapshot.postsAnalysed = posts.length;
 
+    // ── Translate + summarise top & worst video captions ─────────────────────
+    const videosToAnnotate = [...topVideos, ...worstVideos];
+    const needsAnnotation = videosToAnnotate.filter(v => v.text || v.hashtags.length);
+    let translationMap: Record<string, { captionTranslated: string; videoSummary: string }> = {};
+
+    if (needsAnnotation.length > 0) {
+      try {
+        const captionList = needsAnnotation.map((v, i) =>
+          `${i + 1}. id:${v.id} | caption: ${sanitize(v.text).slice(0, 200)} | hashtags: ${v.hashtags.slice(0, 5).join(' ')}`
+        ).join('\n');
+
+        const translationMsg = await anthropic.messages.create({
+          model: 'claude-haiku-4-5',
+          max_tokens: 1500,
+          messages: [{
+            role: 'user',
+            content: `For each TikTok video below, return a JSON array with this shape:
+[{"id":"...","captionTranslated":"English translation of the caption (keep as-is if already English)","videoSummary":"1–2 sentences describing what this video is likely about based on its caption and hashtags"}]
+
+Return ONLY the JSON array, no other text.
+
+VIDEOS:
+${captionList}`,
+          }],
+        });
+
+        const tRaw = translationMsg.content[0].type === 'text' ? translationMsg.content[0].text : '[]';
+        const tMatch = tRaw.match(/\[[\s\S]*\]/);
+        const tParsed: Array<{ id: string; captionTranslated: string; videoSummary: string }> = JSON.parse(tMatch ? tMatch[0] : '[]');
+        for (const item of tParsed) {
+          translationMap[item.id] = { captionTranslated: item.captionTranslated, videoSummary: item.videoSummary };
+        }
+      } catch (e) {
+        console.error('[analyze] Translation step failed', e);
+      }
+    }
+
+    const annotate = (v: EnrichedPost): EnrichedPost => ({
+      ...v,
+      ...(translationMap[v.id] ?? {}),
+    });
+
     const report: AnalysisReport = {
       ...claudeReport,
-      topVideos,
-      worstVideos,
+      topVideos: topVideos.map(annotate),
+      worstVideos: worstVideos.map(annotate),
       allPosts: enriched,
     };
 

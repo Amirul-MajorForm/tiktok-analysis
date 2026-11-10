@@ -124,8 +124,9 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
 
       {/* Caption + stats */}
       <div style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Original caption */}
         <p style={{
-          fontFamily: 'DM Sans', fontSize: 11, color: '#666666',
+          fontFamily: 'DM Sans', fontSize: 11, color: '#888888',
           margin: 0, lineHeight: 1.45,
           display: '-webkit-box', WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical', overflow: 'hidden',
@@ -133,11 +134,77 @@ export default function VideoCard({ post, rank, variant = 'top' }: Props) {
           {post.text || '(no caption)'}
         </p>
 
-        <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
+        {/* English translation (shown when different from original) */}
+        {post.captionTranslated && post.captionTranslated !== post.text && (
+          <p style={{
+            fontFamily: 'DM Sans', fontSize: 11, color: '#333333',
+            margin: 0, lineHeight: 1.45, fontStyle: 'italic',
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {post.captionTranslated}
+          </p>
+        )}
+
+        {/* Video summary */}
+        {post.videoSummary && (
+          <p style={{
+            fontFamily: 'DM Sans', fontSize: 10, color: '#6a8c0a',
+            margin: 0, lineHeight: 1.4, background: 'rgba(200,240,96,0.1)',
+            padding: '4px 7px', borderRadius: 5,
+            display: '-webkit-box', WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {post.videoSummary}
+          </p>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 'auto' }}>
           <StatItem label="Likes" value={fmt(post.likes)} />
           <StatItem label="Comments" value={fmt(post.comments)} />
           <StatItem label="Shares" value={fmt(post.shares)} />
           <StatItem label="Plays" value={fmt(post.plays)} isPlays />
+          {/* Download button */}
+          <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+            {post.proxiedVideoUrl ? (
+              <a
+                href={post.proxiedVideoUrl}
+                download={`tiktok-${post.id}.mp4`}
+                title="Download video"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 26, height: 26, borderRadius: 6,
+                  background: '#f0f0eb', border: '1px solid #e5e5e0',
+                  color: '#555555', textDecoration: 'none',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </a>
+            ) : post.webVideoUrl ? (
+              <a
+                href={post.webVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open on TikTok to download"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 26, height: 26, borderRadius: 6,
+                  background: '#f0f0eb', border: '1px solid #e5e5e0',
+                  color: '#555555', textDecoration: 'none',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
