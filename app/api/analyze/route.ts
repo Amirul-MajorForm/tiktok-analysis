@@ -181,29 +181,16 @@ export async function POST(req: NextRequest) {
 
     const cleanUsername = username.replace(/^@/, '').trim();
 
-    // Call Apify
+    // ── Primary scraper: Apify (works well for US/global profiles) ──────────
     const apifyUrl = `https://api.apify.com/v2/acts/clockworks~free-tiktok-scraper/run-sync-get-dataset-items?token=${process.env.APIFY_API_KEY}&timeout=120&memory=1024`;
 
-    const commonApifyOpts = {
-      resultsPerPage: 50,
-      shouldDownloadVideos: false,
-      shouldDownloadCovers: false,
-      shouldDownloadSubtitles: false,
-      shouldDownloadSlideshowImages: false,
-      proxyConfiguration: {
-        useApifyProxy: true,
-        apifyProxyGroups: ['RESIDENTIAL'],
-      },
-    };
-
-    // Fire both input formats in parallel — regional profiles often only respond to one of them
     const fetchApify = async (body: object): Promise<ApifyPost[]> => {
       try {
         const res = await fetch(apifyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(150_000),
+          signal: AbortSignal.timeout(130_000),
         });
         if (!res.ok) { console.error('[analyze] Apify error', res.status, await res.text()); return []; }
         const data = await res.json();
@@ -214,32 +201,71 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    console.log('[analyze] Firing both Apify input formats in parallel for', profileUrl);
-    const [profilesPosts, startUrlsPosts] = await Promise.all([
-      fetchApify({ profiles: [profileUrl], ...commonApifyOpts }),
-      fetchApify({ startUrls: [{ url: profileUrl }], ...commonApifyOpts }),
-    ]);
+    const apifyOpts = {
+      profiles: [profileUrl],
+      resultsPerPage: 50,
+      shouldDownloadVideos: false,
+      shouldDownloadCovers: false,
+      shouldDownloadSubtitles: false,
+      shouldDownloadSlideshowImages: false,
+    };
 
-    console.log('[analyze] profiles[] returned', profilesPosts.length, '| startUrls[] returned', startUrlsPosts.length);
+    console.log('[analyze] Calling Apify for', profileUrl);
+    let rawPosts: ApifyPost[] = await fetchApify(apifyOpts);
+    console.log('[analyze] Apify returned', rawPosts.length, 'posts');
 
-    // Take whichever returned more posts; if equal, merge deduplicated
-    let rawPosts: ApifyPost[];
-    if (profilesPosts.length >= startUrlsPosts.length) {
-      rawPosts = profilesPosts;
-    } else {
-      rawPosts = startUrlsPosts;
-    }
-    // If one has notably more, we already took it. If they're close, dedupe-merge by id.
-    if (Math.abs(profilesPosts.length - startUrlsPosts.length) <= 3 && profilesPosts.length > 0 && startUrlsPosts.length > 0) {
-      const seen = new Set(profilesPosts.map(p => p.id).filter(Boolean));
-      const extra = startUrlsPosts.filter(p => p.id && !seen.has(p.id));
-      rawPosts = [...profilesPosts, ...extra];
-      console.log('[analyze] Merged to', rawPosts.length, 'posts');
+    // ── Fallback: RapidAPI TikTok scraper (better regional coverage) ─────────
+    if (rawPosts.length < 5 && process.env.RAPIDAPI_KEY) {
+      console.log('[analyze] Falling back to RapidAPI (got', rawPosts.length, 'from Apify)');
+      try {
+        const handle = cleanUsername;
+        // Fetch up to 3 pages of ~20 posts each to get ~50 total
+        const pages: ApifyPost[] = [];
+        let cursor = '0';
+        for (let page = 0; page < 3 && (page === 0 || cursor !== '0'); page++) {
+          const rapidRes = await fetch(
+            `https://tiktok-api23.p.rapidapi.com/api/user/posts?uniqueId=${encodeURIComponent(handle)}&count=20&cursor=${cursor}`,
+            {
+              headers: {
+                'x-rapidapi-host': 'tiktok-api23.p.rapidapi.com',
+                'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+              },
+              signal: AbortSignal.timeout(30_000),
+            }
+          );
+          if (!rapidRes.ok) { console.error('[analyze] RapidAPI error', rapidRes.status); break; }
+          const rapidData = await rapidRes.json();
+          const items = rapidData?.data?.itemList ?? rapidData?.itemList ?? [];
+          if (!items.length) break;
+          // Map RapidAPI shape → ApifyPost
+          for (const item of items) {
+            pages.push({
+              id: item.id ?? item.aweme_id,
+              text: item.desc ?? '',
+              createTime: item.createTime ?? item.create_time,
+              diggCount: item.stats?.diggCount ?? item.statistics?.digg_count,
+              commentCount: item.stats?.commentCount ?? item.statistics?.comment_count,
+              shareCount: item.stats?.shareCount ?? item.statistics?.share_count,
+              playCount: item.stats?.playCount ?? item.statistics?.play_count,
+              videoMeta: { coverUrl: item.video?.cover ?? item.video?.originCover },
+              webVideoUrl: `https://www.tiktok.com/@${handle}/video/${item.id ?? item.aweme_id}`,
+              hashtags: (item.textExtra ?? []).map((t: { hashtagName?: string }) => t.hashtagName ?? '').filter(Boolean),
+              authorMeta: { name: item.author?.uniqueId ?? handle, nickName: item.author?.nickname },
+            });
+          }
+          cursor = String(rapidData?.data?.cursor ?? rapidData?.cursor ?? '0');
+          if (!rapidData?.data?.hasMore && !rapidData?.hasMore) break;
+        }
+        console.log('[analyze] RapidAPI returned', pages.length, 'posts');
+        if (pages.length > rawPosts.length) rawPosts = pages;
+      } catch (e) {
+        console.error('[analyze] RapidAPI fallback failed', e);
+      }
     }
 
     if (rawPosts.length === 0) {
       return NextResponse.json(
-        { error: 'No posts returned from Apify. The profile may be private, regional, or the scraper timed out.' },
+        { error: 'No posts returned. The profile may be private, very new, or temporarily blocked by the scraper.' },
         { status: 422 }
       );
     }
