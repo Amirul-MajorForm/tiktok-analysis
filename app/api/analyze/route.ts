@@ -233,10 +233,16 @@ export async function POST(req: NextRequest) {
               signal: AbortSignal.timeout(30_000),
             }
           );
-          if (!rapidRes.ok) { console.error('[analyze] RapidAPI error', rapidRes.status); break; }
+          if (!rapidRes.ok) {
+            const errText = await rapidRes.text();
+            console.error('[analyze] RapidAPI error', rapidRes.status, errText.slice(0, 300));
+            break;
+          }
           const rapidData = await rapidRes.json();
-          const items = rapidData?.data?.itemList ?? rapidData?.itemList ?? [];
-          if (!items.length) break;
+          console.log('[analyze] RapidAPI raw keys:', Object.keys(rapidData), '| data keys:', rapidData?.data ? Object.keys(rapidData.data) : 'n/a');
+          console.log('[analyze] RapidAPI sample:', JSON.stringify(rapidData).slice(0, 500));
+          const items = rapidData?.data?.itemList ?? rapidData?.itemList ?? rapidData?.aweme_list ?? rapidData?.data?.aweme_list ?? [];
+          if (!items.length) { console.log('[analyze] RapidAPI: no items in response'); break; }
           // Map RapidAPI shape → ApifyPost
           for (const item of items) {
             pages.push({
